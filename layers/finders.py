@@ -44,7 +44,7 @@ class AppLayerFinder(BaseFinder):
         return [app for app in apps if not app in excluded_apps]
 
     def __init__(self, apps=None, *args, **kwargs):
-        provider_path = getattr(settings, "LAYER_PROVIDER", "layers.providers.DefaultLayerProvider")
+        provider_path = getattr(settings, "LAYERS_PROVIDER", "layers.providers.DefaultLayerProvider")
 
         if provider_path is None:
             raise Exception("This finder requires the LAYER_PROVIDER variable to be set in the "
@@ -67,14 +67,12 @@ class AppLayerFinder(BaseFinder):
         else:
             self.apps = apps
 
-        self.update_storage(init_storage=True)
+        self.update_storage()
 
         super(AppLayerFinder, self).__init__(*args, **kwargs)
 
-    def update_storage(self, init_storage=False):
+    def update_storage(self):
         layers = self.provider.get_layers()
-
-        update_apps = []
 
         for app in self.apps:
             for layer in layers.keys():
@@ -82,15 +80,10 @@ class AppLayerFinder(BaseFinder):
                     app_storage = self.storage_class(app, layer)
 
                     if os.path.isdir(app_storage.location):
-                        if init_storage and not app in update_apps:
-                            update_apps.append(app)
-                        if init_storage and not app in self.storages:
+                        if not app in self.storages:
                             self.storages[app] = {}
 
                         self.storages[app][layer] = app_storage
-                        
-        if init_storage:
-            self.apps = update_apps[:]
 
         # Remove from storage layers which are not longer present
         for layer in self.layers.keys():
@@ -106,6 +99,8 @@ class AppLayerFinder(BaseFinder):
         """
         Looks for files in the app directories.
         """
+        self.update_storage()
+
         matches = []
         for app in self.apps:
             match = self.find_in_app(app, path, layer)
@@ -116,8 +111,6 @@ class AppLayerFinder(BaseFinder):
         return matches
 
     def find_in_app(self, app, path, layer=None):
-        self.update_storage()
-
         layer = layer or get_active_layer(get_current_request())
         storage = self.storages.get(app, {}).get(layer, None)
         if storage:
