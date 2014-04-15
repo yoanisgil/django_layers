@@ -6,10 +6,11 @@ from django.contrib.staticfiles import utils
 from django.utils.datastructures import SortedDict
 from django.utils.importlib import import_module
 
-
 from django.conf import settings
 
 from .middleware import get_current_request, get_active_layer
+from .providers import BaseLayerProvider
+
 
 class LayerStaticStorage(AppStaticStorage):
     def __init__(self, app, layer, *args, **kwargs):
@@ -27,23 +28,79 @@ class LayerStaticStorage(AppStaticStorage):
 class AppLayerFinder(BaseFinder):
     storage_class = LayerStaticStorage
 
-    def __init__(self, apps=None, *args, **kwargs):
-        layers = getattr(settings, "LAYERS", {})
-        self.apps = []
-        self.storages = SortedDict()
-        if apps is None:
+    @staticmethod
+    def get_apps():
+        if not hasattr(settings, 'LAYERED_APPS'):
             apps = settings.INSTALLED_APPS
-        for app in apps:
-            for layer in layers.keys():
-                app_storage = self.storage_class(app, layer)
-                if os.path.isdir(app_storage.location):
-                    if app not in self.apps:
-                        self.apps.append(app)
-                    if app not in self.storages:
-                        self.storages[app] = {}
+        else:
+            apps = getattr(settings, 'LAYERED_APPS')
 
-                    self.storages[app][layer] = app_storage
+            for app in apps:
+                if not app in settings.INSTALLED_APPS:
+                    raise Exception("Application %s not listed in INSTALLED_APPS" % app)
+
+        excluded_apps = getattr(settings, 'EXCLUDE_FROM_LAYERS', [])
+
+        return [app for app in apps if not app in excluded_apps]
+
+    def __init__(self, apps=None, *args, **kwargs):
+        provider_path = getattr(settings, "LAYER_PROVIDER", "layers.providers.DefaultLayerProvider")
+
+        if provider_path is None:
+            raise Exception("This finder requires the LAYER_PROVIDER variable to be set in the "
+                            "application's setting file")
+
+        module_path, class_name = provider_path.rsplit('.', 1)
+        module = import_module(module_path)
+
+        provider_cls = getattr(module, class_name)
+
+        if not issubclass(provider_cls, BaseLayerProvider):
+            raise Exception("%s must be a descendant from layers.providers.BaseLayerProvider" % provider_cls)
+
+        self.provider = provider_cls()
+        self.layers = {}
+        self.storages = SortedDict()
+
+        if apps is None:
+            self.apps = AppLayerFinder.get_apps()
+        else:
+            self.apps = apps
+
+        self.update_storage(init_storage=True)
+
         super(AppLayerFinder, self).__init__(*args, **kwargs)
+
+    def update_storage(self, init_storage=False):
+        layers = self.provider.get_layers()
+
+        update_apps = []
+
+        for app in self.apps:
+            for layer in layers.keys():
+                if not layer in self.layers:
+                    app_storage = self.storage_class(app, layer)
+
+                    if os.path.isdir(app_storage.location):
+                        if init_storage and not app in update_apps:
+                            update_apps.append(app)
+                        if init_storage and not app in self.storages:
+                            self.storages[app] = {}
+
+                        self.storages[app][layer] = app_storage
+                        
+        if init_storage:
+            self.apps = update_apps[:]
+
+        # Remove from storage layers which are not longer present
+        for layer in self.layers.keys():
+            if not layer in layers:
+                for app in self.apps:
+                    del self.storages[app][layer]
+                    del layers[layer]
+
+        # Update the list of layers
+        self.layers.update(layers)
 
     def find(self, path, all=False, layer=None):
         """
@@ -59,6 +116,8 @@ class AppLayerFinder(BaseFinder):
         return matches
 
     def find_in_app(self, app, path, layer=None):
+        self.update_storage()
+
         layer = layer or get_active_layer(get_current_request())
         storage = self.storages.get(app, {}).get(layer, None)
         if storage:
@@ -75,8 +134,11 @@ class AppLayerFinder(BaseFinder):
         if not layer:
             return
 
+        self.update_storage()
+
         for storage in self.storages.itervalues():
             layer_storage = storage.get(layer, None)
             if layer_storage and layer_storage.exists(''):
                 for path in utils.get_files(layer_storage, ignore_patterns):
                     yield path, layer_storage
+
