@@ -89,8 +89,10 @@ class AppLayerFinder(BaseFinder):
         for layer in self.layers.keys():
             if not layer in layers:
                 for app in self.apps:
-                    del self.storages[app][layer]
-                    del layers[layer]
+                    if app in self.storages and layer in self.storages[app]:
+                        del self.storages[app][layer]
+
+                del self.layers[layer]
 
         # Update the list of layers
         self.layers.update(layers)

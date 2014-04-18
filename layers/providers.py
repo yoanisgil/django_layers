@@ -80,7 +80,7 @@ class ModelLayerProvider(BaseLayerProvider):
         post_delete.connect(self.on_post_delete, sender=model)
 
     def on_post_save(self, sender, **kwargs):
-        if 'instance' in kwargs and 'created' in kwargs and kwargs['created']:
+        if 'instance' in kwargs:
             instance = kwargs.get('instance')
             layer_name = getattr(instance, self.layer_name_field)
 
