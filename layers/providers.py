@@ -3,7 +3,10 @@ from django.db import models
 from django.db.models import FieldDoesNotExist
 from django.utils.importlib import import_module
 from django.db.models.signals import post_delete, post_save
-from django.dispatch import receiver
+
+from .signals import layer_added, layer_removed
+
+
 
 class BaseLayerProvider(object):
     """
@@ -87,6 +90,9 @@ class ModelLayerProvider(BaseLayerProvider):
             if layer_name and not layer_name in self.layers:
                 self.layers.update({layer_name: self.path_url_builder(layer_name)})
 
+            if 'created' in kwargs and kwargs['created']:
+                layer_added.send_robust(self, layer_name=layer_name)
+
     def on_post_delete(self, sender, **kwargs):
         if 'instance' in kwargs:
             instance = kwargs.get('instance')
@@ -94,6 +100,8 @@ class ModelLayerProvider(BaseLayerProvider):
 
             if layer_name and layer_name in self.layers:
                 del self.layers[layer_name]
+
+                layer_removed.send_robust(self, layer_name=layer_name)
 
     def get_layers(self):
         if self.layers is None:
