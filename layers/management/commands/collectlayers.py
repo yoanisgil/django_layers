@@ -59,7 +59,7 @@ Type 'yes' to continue, or 'no' to cancel: """
             if confirm != 'yes':
                 raise CommandError("Collecting static files cancelled.")
 
-        layers = getattr(settings, "LAYERS", {})
+        layers = AppLayerFinder.get_provider().get_layers()
 
         modified_count = 0
         unmodified_count = 0

@@ -43,7 +43,8 @@ class AppLayerFinder(BaseFinder):
 
         return [app for app in apps if not app in excluded_apps]
 
-    def __init__(self, apps=None, *args, **kwargs):
+    @staticmethod
+    def get_provider():
         provider_path = getattr(settings, "LAYERS_PROVIDER", "layers.providers.DefaultLayerProvider")
 
         if provider_path is None:
@@ -58,7 +59,10 @@ class AppLayerFinder(BaseFinder):
         if not issubclass(provider_cls, BaseLayerProvider):
             raise Exception("%s must be a descendant from layers.providers.BaseLayerProvider" % provider_cls)
 
-        self.provider = provider_cls()
+        return provider_cls()
+
+    def __init__(self, apps=None, *args, **kwargs):
+        self.provider = AppLayerFinder.get_provider()
         self.layers = {}
         self.storages = SortedDict()
 
