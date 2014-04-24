@@ -2,7 +2,7 @@ django layers
 =============
 
 This package provides support for "layers" of templates and static resources
-that can be selecting depending on the request context. This package is a
+that can be selected depending on the request context. This package is a
 fork from: https://github.com/iivvoo/django_layers, with the posibility of 
 having *dynamic layers*. The term *dynamic layers* refers to the ability of
 having layers which are added/removed on an unpredictable manner. 
@@ -28,8 +28,7 @@ You will need to clone this repository via command line (or
 your preferred Git/GitHub client) and then run:
 	python setup.py install
 
-If the list of available layers is known before hand, then add
-'layers.middleware.LayerLoaderMiddleware' to your 
+Then add 'layers.middleware.LayerLoaderMiddleware' to your 
 MIDDLEWARE_CLASSES, e.g.
 
     MIDDLEWARE_CLASSES = (
@@ -56,13 +55,14 @@ add 'layers.finders.AppLayerFinder' as the first STATICFILE_FINDERS:
 
 and define which layers you have and where they need to be collected to
 
+If the list of available layers is known before hand, then the following
+dictionary to your project's settings file: 
+
     LAYERS = {
         'visitor-a':STATIC_ROOT + '/visitor-a',
         'visitor-b':STATIC_ROOT + '/visitor-b'
         }
 
-
-Now you can start using layers.
 
 On the contray, if you want to use the *dynamic layers* feature, then add
 the following dictionary to your project's settings file:
@@ -81,6 +81,9 @@ LAYERS_MODEL_PROVIDER_CONFIG dictionary to build the hash of available
 layers. The ModelLayerProvider class will track additions and deletions of
 instances to the provided model and instatly update the dictionary of
 available layers.
+
+
+Now you can start using layers.
 
 Hands on
 --------
