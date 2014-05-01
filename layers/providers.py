@@ -114,7 +114,8 @@ class ModelLayerProvider(BaseLayerProvider):
 
             for obj in objects:
                 layer_name = getattr(obj, self.layer_name_field)
-                if layer_name:
+
+                if layer_name and not layer_name in self.layers:
                     self.layers.update({layer_name: self.path_url_builder(layer_name)})
 
         return self.layers

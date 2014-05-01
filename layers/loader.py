@@ -58,18 +58,18 @@ for app in settings.INSTALLED_APPS:
 
 app_layers_funcs = tuple(app_layers_funcs)
 
+
 class LayerLoader(BaseLoader):
-    def load_template_source(self, template_name, layers_dirs=None, templates_dirs=None, layers_funcs=None):
+    def load_template_source(self, template_name, layers_dirs=None, template_dirs=None, layers_funcs=None):
         from layers.middleware import get_current_request
         request = get_current_request()
         layers_dirs = layers_dirs or app_layers_dirs
-        templates_dirs = templates_dirs or app_templates_dirs
+        template_dirs = template_dirs or app_templates_dirs
         layers_funcs = layers_funcs or app_layers_funcs
 
         # if request and template_name == "base.html":
         #    import pdb; pdb.set_trace()
-            
-        
+
         for f in layers_funcs:
             ## optimization: check if we didn't already try this prefix in a previous iteration
             prefix = f(request)
@@ -82,8 +82,8 @@ class LayerLoader(BaseLoader):
                                 return (fp.read().decode(settings.FILE_CHARSET), filepath)
                         except IOError:
                             pass
-                if templates_dirs:
-                    for filepath in self.get_template_sources(os.path.join(prefix, template_name), templates_dirs):
+                if template_dirs:
+                    for filepath in self.get_template_sources(os.path.join(prefix, template_name), template_dirs):
                         try:
                             with open(filepath, 'rb') as fp:
                                 return (fp.read().decode(settings.FILE_CHARSET), filepath)
