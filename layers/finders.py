@@ -119,12 +119,14 @@ class AppLayerFinder(BaseFinder):
     def find_in_app(self, app, path, layer=None):
         layer = layer or get_active_layer(get_current_request())
         storage = self.storages.get(app, {}).get(layer, None)
-        if storage:
-            if layer:
-                if storage.exists(path):
-                    matched_path = storage.path(path)
-                    if matched_path:
-                        return matched_path
+
+        if storage and layer:
+            _path = path.replace('{}/'.format(layer), '')
+
+            if storage.exists(_path):
+                matched_path = storage.path(_path)
+                if matched_path:
+                    return matched_path
 
     def list(self, ignore_patterns, layer=None):
         """
